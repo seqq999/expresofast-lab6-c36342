@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Panel de monitoreo de envios de ExpresoFast"
+    />
+    <title>ExpresoFast | Centro de control</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="/" aria-label="ExpresoFast inicio">
+          <span class="brand-mark" aria-hidden="true">EF</span>
+          <span>
+            <strong>ExpresoFast</strong>
+            <small>Centro de control log&iacute;stico</small>
+          </span>
+        </a>
+        <div class="topbar-actions">
+          <span class="user-badge" id="user-badge"></span>
+          <button
+            class="icon-button"
+            id="logout-button"
+            type="button"
+            title="Cerrar sesión"
+            aria-label="Cerrar sesión"
+          >
+            ↪
+          </button>
+          <span class="connection-status" id="connection-status">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span id="connection-label">Conectando</span>
+          </span>
+          <button
+            class="icon-button"
+            id="refresh-button"
+            type="button"
+            title="Actualizar envios"
+            aria-label="Actualizar envios"
+          >
+            &#8635;
+          </button>
+        </div>
+      </header>
+
+      <main class="main-content">
+        <section class="page-intro" aria-labelledby="page-title">
+          <div>
+            <p class="eyebrow">Operaciones / Tiempo real</p>
+            <h1 id="page-title">Monitoreo de envios</h1>
+            <p class="intro-copy">
+              Una vista clara de cada paquete desde la salida hasta la entrega.
+            </p>
+          </div>
+          <div class="last-sync">
+            Ultima sincronizacion <strong id="last-sync">--:--</strong>
+          </div>
+        </section>
+
+        <section class="metric-grid" aria-label="Resumen de operaciones">
+          <article class="metric-card metric-card-primary">
+            <span class="metric-label">Envios activos</span>
+            <strong class="metric-value" id="metric-total">0</strong>
+            <span class="metric-detail">Total registrado</span>
+          </article>
+          <article class="metric-card">
+            <span class="metric-label">Pendientes</span>
+            <strong class="metric-value" id="metric-pending">0</strong>
+            <span class="metric-detail">Esperando salida</span>
+          </article>
+          <article class="metric-card">
+            <span class="metric-label">En transito</span>
+            <strong class="metric-value" id="metric-transit">0</strong>
+            <span class="metric-detail">En ruta nacional</span>
+          </article>
+          <article class="metric-card">
+            <span class="metric-label">Entregados</span>
+            <strong class="metric-value" id="metric-delivered">0</strong>
+            <span class="metric-detail">Operacion completada</span>
+          </article>
+        </section>
+
+        <div class="workspace-grid">
+          <aside class="sidebar-panel" aria-labelledby="filters-title">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Explorar</p>
+                <h2 id="filters-title">Filtros</h2>
+              </div>
+              <span class="filter-count" id="filter-count">0</span>
+            </div>
+            <nav class="filter-list" aria-label="Filtrar envios por estado">
+              <button
+                class="filter-button is-active"
+                type="button"
+                data-filter="TODOS"
+              >
+                <span class="filter-icon filter-icon-all" aria-hidden="true"
+                  >&#9673;</span
+                >
+                <span>Todos los envios</span>
+                <strong data-filter-count="TODOS">0</strong>
+              </button>
+              <button
+                class="filter-button"
+                type="button"
+                data-filter="PENDIENTE"
+              >
+                <span
+                  class="filter-icon filter-icon-pending"
+                  aria-hidden="true"
+                ></span>
+                <span>Pendientes</span>
+                <strong data-filter-count="PENDIENTE">0</strong>
+              </button>
+              <button
+                class="filter-button"
+                type="button"
+                data-filter="EN_TRANSITO"
+              >
+                <span
+                  class="filter-icon filter-icon-transit"
+                  aria-hidden="true"
+                ></span>
+                <span>En transito</span>
+                <strong data-filter-count="EN_TRANSITO">0</strong>
+              </button>
+              <button
+                class="filter-button"
+                type="button"
+                data-filter="ENTREGADO"
+              >
+                <span
+                  class="filter-icon filter-icon-delivered"
+                  aria-hidden="true"
+                ></span>
+                <span>Entregados</span>
+                <strong data-filter-count="ENTREGADO">0</strong>
+              </button>
+              <button
+                class="filter-button"
+                type="button"
+                data-filter="CANCELADO"
+              >
+                <span
+                  class="filter-icon filter-icon-cancelled"
+                  aria-hidden="true"
+                ></span>
+                <span>Cancelados</span>
+                <strong data-filter-count="CANCELADO">0</strong>
+              </button>
+            </nav>
+            <div class="sidebar-note">
+              <span class="note-icon" aria-hidden="true">i</span>
+              <p>
+                Los cambios de estado se reflejan de inmediato en el tablero.
+              </p>
+            </div>
+          </aside>
+
+          <section class="shipments-panel" aria-labelledby="shipments-title">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Seguimiento</p>
+                <h2 id="shipments-title">Envios recientes</h2>
+              </div>
+              <label class="search-box">
+                <span aria-hidden="true">&#9906;</span>
+                <span class="sr-only">Buscar envio</span>
+                <input
+                  id="search-input"
+                  type="search"
+                  placeholder="Buscar por codigo o destino"
+                  autocomplete="off"
+                />
+              </label>
+            </div>
+            <div
+              class="feedback"
+              id="feedback"
+              role="status"
+              aria-live="polite"
+            ></div>
+            <div
+              class="shipments-grid"
+              id="shipments-grid"
+              aria-live="polite"
+            ></div>
+            <div class="empty-state" id="empty-state" hidden>
+              <h3>No hay envios para mostrar</h3>
+              <p>Prueba con otro filtro o registra un nuevo envio.</p>
+            </div>
+          </section>
+        </div>
+
+        <section class="create-panel" aria-labelledby="create-title">
+          <div class="create-copy">
+            <p class="eyebrow">Nueva operacion</p>
+            <h2 id="create-title">Registrar envio</h2>
+            <p>
+              Agrega un paquete al tablero y asignalo a un vehiculo y conductor
+              existentes.
+            </p>
+            <div class="form-accent" aria-hidden="true">
+              <span></span><span></span><span></span>
+            </div>
+          </div>
+          <form class="shipment-form" id="shipment-form">
+            <div class="form-field">
+              <label for="codigo-rastreo">Codigo de rastreo</label>
+              <input
+                id="codigo-rastreo"
+                name="codigoRastreo"
+                type="text"
+                placeholder="EXP-9901"
+                maxlength="30"
+                required
+              />
+            </div>
+            <div class="form-field form-field-wide">
+              <label for="direccion-destino">Direccion destino</label>
+              <input
+                id="direccion-destino"
+                name="direccionDestino"
+                type="text"
+                placeholder="Paraiso, Cartago"
+                maxlength="200"
+                required
+              />
+            </div>
+            <div class="form-field">
+              <label for="peso-kg">Peso <span>(kg)</span></label>
+              <input
+                id="peso-kg"
+                name="pesoKg"
+                type="number"
+                min="0.01"
+                step="0.01"
+                placeholder="12.5"
+                required
+              />
+            </div>
+            <div class="form-field">
+              <label for="costo">Costo</label>
+              <input
+                id="costo"
+                name="costo"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="3500.00"
+                required
+              />
+            </div>
+            <div class="form-field">
+              <label for="vehiculo-id">Vehiculo</label>
+              <select id="vehiculo-id" name="vehiculoId" required>
+                <option value="">Cargando vehiculos...</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label for="conductor-id">Conductor</label>
+              <select id="conductor-id" name="conductorId" required>
+                <option value="">Cargando conductores...</option>
+              </select>
+            </div>
+            <div class="form-actions">
+              <button class="primary-button" type="submit" id="submit-button">
+                <span aria-hidden="true">+</span>
+                Registrar envio
+              </button>
+            </div>
+          </form>
+        </section>
+      </main>
+
+      <div class="modal-backdrop" id="audit-modal" hidden>
+        <section
+          class="audit-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="audit-title"
+        >
+          <div class="modal-heading">
+            <div>
+              <p class="eyebrow">Trazabilidad</p>
+              <h2 id="audit-title">Bitácora del envío</h2>
+            </div>
+            <button
+              class="icon-button modal-close"
+              id="close-audit"
+              type="button"
+              aria-label="Cerrar bitácora"
+            >
+              ×
+            </button>
+          </div>
+          <div class="date-filters">
+            <label>Desde <input id="audit-from" type="date" /></label>
+            <label>Hasta <input id="audit-to" type="date" /></label>
+          </div>
+          <div class="audit-list" id="audit-list"></div>
+        </section>
+      </div>
+
+      <footer class="footer">
+        <span>ExpresoFast</span>
+        <span>Plataforma de logistica y monitoreo</span>
+      </footer>
+    </div>
+  </body>
+</html>
