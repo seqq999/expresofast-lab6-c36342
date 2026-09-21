@@ -1,4 +1,4 @@
-package cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.TestServices;
+package cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.TestController;
 
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.when;
