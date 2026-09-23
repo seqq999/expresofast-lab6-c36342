@@ -68,6 +68,7 @@ a {
 /* ============ SHELL / HEADER ============ */
 .app-shell {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
 }
@@ -489,8 +490,10 @@ a {
 /* ============ LOGIN ============ */
 .login-body {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
   background: linear-gradient(135deg, #172554 0%, #1d4ed8 100%);
 }
 .login-shell {
