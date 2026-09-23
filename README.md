@@ -8,6 +8,7 @@ Aplicación web para gestión de envíos, logística y auditoría de estados, de
 - Maven
 - SQL Server 2019+
 - Git
+- Un servidor estático para el cliente web (por ejemplo, extensión **Live Server** de VS Code)
 
 ## Configuración local
 
@@ -18,21 +19,37 @@ Aplicación web para gestión de envíos, logística y auditoría de estados, de
    - `database/02_schema_lab6_extension.sql`
    - `database/03_data_seeds.sql`
 
-## Ejecutar la aplicación
+## Ejecutar el back-end (API REST)
 
 ```bash
 cd backend
 ./mvnw spring-boot:run
 ```
 
-La aplicación queda disponible en:
+La API REST queda disponible en `http://localhost:8080/api`.
 
-- Frontend: `http://localhost:8080`
 - Swagger UI: `http://localhost:8080/swagger-ui/index.html`
+
+## Ejecutar el cliente web (front-end)
+
+El cliente (Laboratorio 8) es HTML5 + CSS3 + JavaScript puro y vive en la carpeta `frontend/`, independiente del backend.
+
+1. Asegurarse de que el backend esté corriendo en `http://localhost:8080` (paso anterior).
+2. Abrir la carpeta `frontend/` en Visual Studio Code.
+3. Click derecho sobre `index.html` → **Open with Live Server**.
+4. El cliente queda disponible en `http://127.0.0.1:5500/index.html` (o el puerto que use tu Live Server).
+
+> Si usas un puerto distinto a `5500`, actualiza los orígenes permitidos en `WebConfig` (backend) para que coincida con el origen real del cliente.
 
 ## Usuarios de prueba
 
-Los scripts de datos crean usuarios con roles como `ADMIN`, `OPERADOR` y `CONDUCTOR`.
+| Usuario     | Contraseña       | Rol             |
+|-------------|------------------|-----------------|
+| admin       | admin1234        | ROLE_ADMIN      |
+| operador    | ope1234          | ROLE_OPERADOR   |
+| conductor   | conductor1234    | ROLE_CONDUCTOR  |
+
+Los scripts de datos crean estos usuarios con sus roles correspondientes (`ADMIN`, `OPERADOR`, `CONDUCTOR`).
 
 ## Colección de Postman
 
@@ -42,18 +59,26 @@ Importar la colección desde:
 
 ## Estructura principal
 
-- `backend/`: aplicación Spring Boot
-- `frontend/`: UI estática con JavaScript
+- `backend/`: aplicación Spring Boot (API REST)
+- `frontend/`: cliente web estático (HTML5 semántico, CSS3 responsivo, JavaScript)
 - `database/`: scripts SQL
 - `postman/`: colección de Postman
 
 ## Funcionalidades
 
 - Login con JWT
-- Autenticación y autorización por roles
+- Autenticación y autorización por roles (RBAC)
 - Registro y consulta de envíos
 - Cambio de estado con bitácora de auditoría
 - Catálogos de vehículos, conductores y empresas
+- Consola web (Laboratorio 8) que consume la API mediante Fetch API/async-await, con:
+  - Token JWT almacenado en `sessionStorage` y decodificado en el cliente
+  - Renderizado dinámico según rol:
+    - **ROLE_ADMIN**: bitácora de auditoría, registrar vehículo, control total de estados
+    - **ROLE_OPERADOR**: asignar vehículo y avanzar envíos a `EN_TRANSITO`
+    - **ROLE_CONDUCTOR**: solo ve sus envíos asignados y puede marcarlos como `ENTREGADO`
+  - Manejo de errores HTTP 400 (RFC 7807), 401 y 403
+  - Diseño responsivo (Mobile-First) con CSS Grid y Flexbox
 
 ## Suite de Pruebas (Laboratorio 7)
 
