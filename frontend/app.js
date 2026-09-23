@@ -1,17 +1,8 @@
-"use strict";
-
-/* ==========================================================
-   ExpresoFast · app.js
-   Un solo archivo para index.html (login) y dashboard.html
-   ========================================================== */
-
 const API_ROOT = "http://localhost:8080/api";
 const API_ENVIOS = `${API_ROOT}/envios`;
 const API_VEHICULOS = `${API_ROOT}/vehiculos`;
 const API_CONDUCTORES = `${API_ROOT}/conductores`;
 const API_LOGIN = `${API_ROOT}/auth/login`;
-
-/* ---------- Helpers de token / sesión (sessionStorage, según enunciado) ---------- */
 
 function getToken() {
     return sessionStorage.getItem("jwt_token");
@@ -53,7 +44,6 @@ function decodeJwt(token) {
 }
 
 function extractRoles(payload) {
-    // Soporta distintas formas comunes de reclamos de autoridades en Spring Security
     if (Array.isArray(payload.roles)) return payload.roles;
     if (Array.isArray(payload.authorities)) {
         return payload.authorities.map(item =>
@@ -79,8 +69,6 @@ function getUserName() {
 function hasRole(role) {
     return getRoles().includes(role);
 }
-
-/* ---------- Petición autenticada genérica ---------- */
 
 async function request(url, options = {}) {
     const token = getToken();
@@ -119,17 +107,12 @@ async function safeJson(response) {
 }
 
 function extractProblemDetails(body) {
-    // Formato RFC 7807: { title, detail, errors: [...] } o similar
     if (!body) return "Solicitud inválida.";
     if (Array.isArray(body.errors) && body.errors.length) {
         return body.errors.map(err => err.message || err.detail || err).join(" · ");
     }
     return body.detail || body.title || "Solicitud inválida.";
 }
-
-/* ==========================================================
-   VISTA: index.html (login)
-   ========================================================== */
 
 function initLoginPage() {
     const form = document.querySelector("#loginForm");
@@ -190,10 +173,6 @@ function initLoginPage() {
     }
 }
 
-/* ==========================================================
-   VISTA: dashboard.html
-   ========================================================== */
-
 function initDashboardPage() {
     if (!getToken()) {
         window.location.href = "index.html";
@@ -228,11 +207,11 @@ function initDashboardPage() {
         driverSelect: document.querySelector("#conductor-id")
     };
 
-    // Cabecera de usuario
+    //cabecera de usuario
     el.userName.textContent = getUserName();
     el.userRole.textContent = roles[0] || "";
 
-    // Visibilidad según rol
+    //visibilidad según rol
     el.auditPanel.hidden = !isAdmin;
     el.roleActions.hidden = !(isAdmin || isOperador);
     el.btnNuevoVehiculo.hidden = !isAdmin;
@@ -448,7 +427,7 @@ function initDashboardPage() {
         button.disabled = true;
         try {
             await request(`${API_ENVIOS}/${id}/estado`, {
-                method: "PUT",
+                method: "PATCH",
                 body: JSON.stringify({ nuevoEstado })
             });
             await loadEnvios();
@@ -460,13 +439,30 @@ function initDashboardPage() {
     }
 
     async function loadAuditoriaGlobal() {
+        el.auditList.innerHTML = '<li class="audit-entry">Cargando historial...</li>';
         try {
-            const entradas = await request(`${API_ENVIOS}/bitacora`);
-            el.auditList.innerHTML = (entradas || [])
+            const resultados = await Promise.all(
+                state.envios.map(envio =>
+                    request(`${API_ENVIOS}/${envio.id}/bitacora`)
+                        .then(entradas => (entradas || []).map(e => ({ ...e, codigoRastreo: envio.codigoRastreo })))
+                        .catch(() => [])
+                )
+            );
+
+            const todasLasEntradas = resultados
+                .flat()
+                .sort((a, b) => new Date(b.fechaCambio) - new Date(a.fechaCambio));
+
+            if (!todasLasEntradas.length) {
+                el.auditList.innerHTML = '<li class="audit-entry">Sin cambios registrados todavía.</li>';
+                return;
+            }
+
+            el.auditList.innerHTML = todasLasEntradas
                 .map(
                     item => `
             <li class="audit-entry">
-              <strong>${escapeHtml(item.estadoAnterior || "-")} → ${escapeHtml(item.estadoNuevo || "-")}</strong>
+              <strong>${escapeHtml(item.codigoRastreo || "-")}: ${escapeHtml(item.estadoAnterior || "-")} → ${escapeHtml(item.estadoNuevo || "-")}</strong>
               <time>${item.fechaCambio ? new Date(item.fechaCambio).toLocaleString("es-CR") : ""}</time>
             </li>`
                 )

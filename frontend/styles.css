@@ -22,6 +22,12 @@
   box-sizing: border-box;
 }
 
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 body {
   margin: 0;
   color: var(--ink);
@@ -78,7 +84,7 @@ a {
   align-items: center;
   justify-content: space-between;
   min-height: 72px;
-  padding: 0 5vw;
+  padding: 0 5%;
   color: #fff;
   background: var(--blue-dark);
 }
@@ -165,7 +171,7 @@ a {
 .filter-nav {
   display: flex;
   gap: 8px;
-  padding: 14px 5vw;
+  padding: 14px 5%;
   background: var(--surface);
   border-bottom: 1px solid var(--line);
   overflow-x: auto;
@@ -190,11 +196,11 @@ a {
 
 /* ============ LAYOUT ============ */
 .layout-grid {
-  width: min(1320px, 90vw);
+  width: min(1320px, 92%);
   margin: 0 auto;
   padding: 32px 0 50px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
+  grid-template-columns: 1fr;
   gap: 24px;
   align-items: start;
   flex: 1;
@@ -480,7 +486,7 @@ a {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  width: min(1320px, 90vw);
+  width: min(1320px, 92%);
   margin: 0 auto;
   padding: 18px 0 28px;
   color: var(--muted);
@@ -500,10 +506,12 @@ a {
   flex: 1;
   display: grid;
   place-items: center;
+  width: 100%;
   padding: 40px 20px;
 }
 .login-card {
-  width: min(420px, 100%);
+  width: 100%;
+  max-width: 420px;
   padding: 34px 30px;
   background: var(--surface);
   border-radius: var(--radius);
@@ -587,7 +595,7 @@ a {
     padding: 12px 5%;
   }
   .layout-grid {
-    width: 90vw;
+    width: 92%;
     grid-template-columns: 1fr;
   }
   .kpi-section {
@@ -600,7 +608,7 @@ a {
     grid-column: span 2;
   }
   .footer {
-    width: 90vw;
+    width: 92%;
     flex-direction: column;
   }
   .user-badge {
