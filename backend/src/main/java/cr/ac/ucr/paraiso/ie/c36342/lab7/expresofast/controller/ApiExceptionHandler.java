@@ -2,6 +2,8 @@ package cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.controller;
 
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
@@ -13,11 +15,12 @@ import org.springframework.security.authentication.BadCredentialsException;
 import java.util.stream.Collectors;
 
 import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.business.EnvioException;
-import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.business.ResourceNotFoundException;
-import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.business.InvalidStateTransitionException;
+import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.business.exceptions.InvalidStateTransitionException;
+import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.business.exceptions.ResourceNotFoundException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+    private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
     @ExceptionHandler(EnvioException.class)
     public ResponseEntity<Map<String, String>> handleEnvioException(EnvioException exception) {
@@ -27,7 +30,8 @@ public class ApiExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException exception) {
         var errors = exception.getBindingResult().getFieldErrors().stream()
-                .collect(Collectors.toMap(error -> error.getField(), error -> error.getDefaultMessage(), (first, second) -> first));
+                .collect(Collectors.toMap(error -> error.getField(), error -> error.getDefaultMessage(),
+                        (first, second) -> first));
         return ResponseEntity.badRequest().body(Map.of("error", "Datos inválidos", "fields", errors));
     }
 
@@ -50,11 +54,13 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Map<String, String>> handleAccessDenied() {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "No tiene permisos para esta operación"));
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(Map.of("error", "No tiene permisos para esta operación"));
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> handleUnexpectedException(Exception exception) {
+        log.error("Error inesperado en el API", exception); 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of("error", "Ocurrió un error interno"));
     }

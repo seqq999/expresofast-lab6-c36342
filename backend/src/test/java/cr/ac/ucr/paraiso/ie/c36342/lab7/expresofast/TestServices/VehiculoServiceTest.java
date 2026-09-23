@@ -17,8 +17,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.business.DuplicateResourceException;
 import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.business.VehiculoService;
+import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.business.exceptions.DuplicateResourceException;
 import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.data.VehiculoRepository;
 import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.domain.Vehiculo;
 

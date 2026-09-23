@@ -1,12 +1,14 @@
 package cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.security;
 
 import java.util.Date;
+import java.util.List;
 import java.nio.charset.StandardCharsets;
 
 import javax.crypto.SecretKey;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Component;
 
 import io.jsonwebtoken.Jwts;
@@ -28,14 +30,34 @@ public class JwtTokenProvider {
 
     public String generateToken(Authentication authentication) {
         Date now = new Date();
-        return Jwts.builder().subject(authentication.getName()).issuedAt(now)
-                .expiration(new Date(now.getTime() + expirationMs)).signWith(key).compact();
+
+        List<String> roles = authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .toList();
+
+        return Jwts.builder()
+                .subject(authentication.getName())
+                .claim("roles", roles) 
+                .issuedAt(now)
+                .expiration(new Date(now.getTime() + expirationMs))
+                .signWith(key)
+                .compact();
     }
 
-    public String getUsername(String token) { return Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload().getSubject(); }
-    public boolean isValid(String token) {
-        try { Jwts.parser().verifyWith(key).build().parseSignedClaims(token); return true; }
-        catch (RuntimeException ex) { return false; }
+    public String getUsername(String token) {
+        return Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload().getSubject();
     }
-    public long getExpirationMs() { return expirationMs; }
+
+    public boolean isValid(String token) {
+        try {
+            Jwts.parser().verifyWith(key).build().parseSignedClaims(token);
+            return true;
+        } catch (RuntimeException ex) {
+            return false;
+        }
+    }
+
+    public long getExpirationMs() {
+        return expirationMs;
+    }
 }

@@ -12,9 +12,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
-import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.business.EnvioException;
 import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.business.EnvioService;
-import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.business.ResourceNotFoundException;
+import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.business.exceptions.ResourceNotFoundException;
 import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.dto.EnvioRequestDTO;
 import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.dto.CambioEstadoDTO;
 import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.dto.BitacoraResponseDTO;
@@ -25,7 +24,6 @@ import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.domain.*;
 @RestController
 @RequestMapping("api/envios")
 @Tag(name = "Envios", description = "Endpoints para la gestion de envios")
-@CrossOrigin(origins = "*")
 public class EnvioController {
 
     private final EnvioService service;
@@ -90,6 +88,10 @@ public class EnvioController {
     }
 
     private EnvioResponseDTO convertirRespuesta(Envio envio) {
+        Vehiculo vehiculo = envio.getVehiculo();
+        Conductor conductor = envio.getConductor();
+        EmpresaLogistica empresa = (vehiculo != null) ? vehiculo.getEmpresa() : null;
+
         return new EnvioResponseDTO(
                 envio.getId(),
                 envio.getCodigoRastreo(),
@@ -97,10 +99,10 @@ public class EnvioController {
                 envio.getPesoKg(),
                 envio.getCosto(),
                 envio.getEstadoEnvio(),
-                envio.getVehiculo().getId(),
-                envio.getConductor().getId(),
-                envio.getVehiculo().getEmpresa().getId(),
-                envio.getVehiculo().getEmpresa().getNombre());
+                (vehiculo != null) ? vehiculo.getId() : null,
+                (conductor != null) ? conductor.getId() : null,
+                (empresa != null) ? empresa.getId() : null,
+                (empresa != null) ? empresa.getNombre() : null);
     }
 
 }

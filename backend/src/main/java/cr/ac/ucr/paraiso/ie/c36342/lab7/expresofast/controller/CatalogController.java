@@ -16,7 +16,6 @@ import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.domain.Vehiculo;
 
 @RestController
 @RequestMapping("/api")
-@CrossOrigin(origins = "*")
 public class CatalogController {
 
     private final VehiculoService vehiculoService;

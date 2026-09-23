@@ -1,322 +1,493 @@
+"use strict";
+
+/* ==========================================================
+   ExpresoFast · app.js
+   Un solo archivo para index.html (login) y dashboard.html
+   ========================================================== */
+
 const API_ROOT = "http://localhost:8080/api";
-const API_BASE = `${API_ROOT}/envios`;
-const token = localStorage.getItem("jwt_token");
-if (!token) window.location.href = "login.html";
-const roles = JSON.parse(localStorage.getItem("auth_roles") || "[]");
-const isConductor = roles.includes("ROLE_CONDUCTOR");
-const canAudit = roles.includes("ROLE_ADMIN") || roles.includes("ROLE_OPERADOR");
+const API_ENVIOS = `${API_ROOT}/envios`;
+const API_VEHICULOS = `${API_ROOT}/vehiculos`;
+const API_CONDUCTORES = `${API_ROOT}/conductores`;
+const API_LOGIN = `${API_ROOT}/auth/login`;
 
-const state = {
-    shipments: [],
-    filter: "TODOS",
-    search: ""
-};
+/* ---------- Helpers de token / sesión (sessionStorage, según enunciado) ---------- */
 
-const elements = {
-    grid: document.querySelector("#shipments-grid"),
-    empty: document.querySelector("#empty-state"),
-    feedback: document.querySelector("#feedback"),
-    form: document.querySelector("#shipment-form"),
-    submitButton: document.querySelector("#submit-button"),
-    vehicleSelect: document.querySelector("#vehiculo-id"),
-    driverSelect: document.querySelector("#conductor-id"),
-    search: document.querySelector("#search-input"),
-    refresh: document.querySelector("#refresh-button"),
-    sync: document.querySelector("#last-sync"),
-    connectionLabel: document.querySelector("#connection-label"),
-    connectionDot: document.querySelector(".status-dot"),
-    userBadge: document.querySelector("#user-badge"),
-    logout: document.querySelector("#logout-button"),
-    createPanel: document.querySelector(".create-panel"),
-    auditModal: document.querySelector("#audit-modal"),
-    auditList: document.querySelector("#audit-list"),
-    auditFrom: document.querySelector("#audit-from"),
-    auditTo: document.querySelector("#audit-to"),
-    filterCount: document.querySelector("#filter-count"),
-    metrics: {
-        total: document.querySelector("#metric-total"),
-        pending: document.querySelector("#metric-pending"),
-        transit: document.querySelector("#metric-transit"),
-        delivered: document.querySelector("#metric-delivered")
+function getToken() {
+    return sessionStorage.getItem("jwt_token");
+}
+
+function saveSession(token) {
+    sessionStorage.setItem("jwt_token", token);
+    const payload = decodeJwt(token);
+    if (payload) {
+        const roles = extractRoles(payload);
+        sessionStorage.setItem("auth_roles", JSON.stringify(roles));
+        sessionStorage.setItem(
+            "auth_user",
+            payload.sub || payload.username || payload.usuario || "Usuario"
+        );
     }
-};
+}
+
+function clearSession() {
+    sessionStorage.removeItem("jwt_token");
+    sessionStorage.removeItem("auth_roles");
+    sessionStorage.removeItem("auth_user");
+}
+
+function decodeJwt(token) {
+    try {
+        const payloadBase64 = token.split(".")[1];
+        const normalized = payloadBase64.replace(/-/g, "+").replace(/_/g, "/");
+        const json = decodeURIComponent(
+            atob(normalized)
+                .split("")
+                .map(char => "%" + char.charCodeAt(0).toString(16).padStart(2, "0"))
+                .join("")
+        );
+        return JSON.parse(json);
+    } catch (error) {
+        return null;
+    }
+}
+
+function extractRoles(payload) {
+    // Soporta distintas formas comunes de reclamos de autoridades en Spring Security
+    if (Array.isArray(payload.roles)) return payload.roles;
+    if (Array.isArray(payload.authorities)) {
+        return payload.authorities.map(item =>
+            typeof item === "string" ? item : item.authority
+        );
+    }
+    if (typeof payload.roles === "string") return payload.roles.split(",");
+    return [];
+}
+
+function getRoles() {
+    try {
+        return JSON.parse(sessionStorage.getItem("auth_roles") || "[]");
+    } catch (error) {
+        return [];
+    }
+}
+
+function getUserName() {
+    return sessionStorage.getItem("auth_user") || "Usuario";
+}
+
+function hasRole(role) {
+    return getRoles().includes(role);
+}
+
+/* ---------- Petición autenticada genérica ---------- */
 
 async function request(url, options = {}) {
+    const token = getToken();
     const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
     if (token) headers.Authorization = `Bearer ${token}`;
-    const response = await fetch(url, {
-        headers,
-        ...options
-    });
 
-    if (response.status === 401) {
-        localStorage.clear();
-        window.location.href = "login.html";
-        throw new Error("Sesión expirada");
+    const response = await fetch(url, { ...options, headers });
+
+    if (response.status === 401 || response.status === 403) {
+        clearSession();
+        window.location.href = "index.html";
+        throw new Error("Sesión expirada o sin permisos.");
     }
 
-    if (response.status === 403) {
-        throw new Error("No tiene permisos para esta operación");
+    if (response.status === 400) {
+        const body = await safeJson(response);
+        const detalle = extractProblemDetails(body);
+        throw new Error(detalle);
     }
 
     if (!response.ok) {
-        const message = await response.text();
-        throw new Error(message || `La solicitud fallo (${response.status})`);
+        const body = await safeJson(response);
+        throw new Error((body && body.detail) || `La solicitud falló (${response.status}).`);
     }
 
-    if (response.status === 204) {
+    if (response.status === 204) return null;
+    return safeJson(response);
+}
+
+async function safeJson(response) {
+    try {
+        return await response.json();
+    } catch (error) {
         return null;
     }
-
-    return response.json();
 }
 
-async function loadShipments() {
-    setFeedback("");
-    setConnection("loading");
-
-    try {
-        state.shipments = await request(`${API_BASE}/optimizados`);
-        renderDashboard();
-        elements.sync.textContent = new Date().toLocaleTimeString("es-CR", {
-            hour: "2-digit",
-            minute: "2-digit"
-        });
-        setConnection("online");
-    } catch (error) {
-        state.shipments = [];
-        renderDashboard();
-        setFeedback(`No se pudieron cargar los envios: ${error.message}`);
-        setConnection("offline");
+function extractProblemDetails(body) {
+    // Formato RFC 7807: { title, detail, errors: [...] } o similar
+    if (!body) return "Solicitud inválida.";
+    if (Array.isArray(body.errors) && body.errors.length) {
+        return body.errors.map(err => err.message || err.detail || err).join(" · ");
     }
+    return body.detail || body.title || "Solicitud inválida.";
 }
 
-async function loadCatalogs() {
-    try {
-        const [vehicles, drivers] = await Promise.all([
-            request(`${API_ROOT}/vehiculos`),
-            request(`${API_ROOT}/conductores`)
-        ]);
-        fillVehicleSelect(vehicles);
-        fillDriverSelect(drivers);
-    } catch (error) {
-        setFeedback(`No se pudieron cargar los catálogos: ${error.message}`);
+/* ==========================================================
+   VISTA: index.html (login)
+   ========================================================== */
+
+function initLoginPage() {
+    const form = document.querySelector("#loginForm");
+    const errorBox = document.querySelector("#login-error");
+    const submitButton = document.querySelector("#login-button");
+
+    // Si ya hay sesión activa, saltar directo al dashboard
+    if (getToken()) {
+        window.location.href = "dashboard.html";
+        return;
     }
-}
 
-function fillVehicleSelect(vehicles) {
-    elements.vehicleSelect.innerHTML = '<option value="">Seleccione un vehiculo</option>';
-    vehicles.forEach(vehicle => {
-        const company = vehicle.empresa?.nombre ? ` - ${vehicle.empresa.nombre}` : "";
-        elements.vehicleSelect.insertAdjacentHTML(
-            "beforeend",
-            `<option value="${vehicle.id}">${escapeHtml(vehicle.placa || `Vehiculo ${vehicle.id}`)}${escapeHtml(company)}</option>`
-        );
-    });
-}
+    form.addEventListener("submit", async event => {
+        event.preventDefault();
+        hideError();
+        submitButton.disabled = true;
 
-function fillDriverSelect(drivers) {
-    elements.driverSelect.innerHTML = '<option value="">Seleccione un conductor</option>';
-    drivers.forEach(driver => {
-        const name = `${driver.nombre || ""} ${driver.apellidos || ""}`.trim();
-        elements.driverSelect.insertAdjacentHTML(
-            "beforeend",
-            `<option value="${driver.id}">${escapeHtml(name || `Conductor ${driver.id}`)}</option>`
-        );
-    });
-}
+        const username = document.querySelector("#username").value.trim();
+        const password = document.querySelector("#password").value;
 
-function renderDashboard() {
-    updateMetrics();
-    updateFilterCounts();
-    renderShipments();
-}
+        try {
+            const response = await fetch(API_LOGIN, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username, password })
+            });
 
-function updateMetrics() {
-    const count = status => state.shipments.filter(shipment => shipment.estadoEnvio === status).length;
-    elements.metrics.total.textContent = state.shipments.length;
-    elements.metrics.pending.textContent = count("PENDIENTE");
-    elements.metrics.transit.textContent = count("EN_TRANSITO");
-    elements.metrics.delivered.textContent = count("ENTREGADO");
-}
+            if (!response.ok) {
+                const body = await safeJson(response);
+                const message =
+                    response.status === 401
+                        ? "Usuario o contraseña incorrectos."
+                        : extractProblemDetails(body);
+                throw new Error(message);
+            }
 
-function updateFilterCounts() {
-    const statuses = ["TODOS", "PENDIENTE", "EN_TRANSITO", "ENTREGADO", "CANCELADO"];
-    elements.filterCount.textContent = getVisibleShipments().length;
+            const data = await response.json();
+            const token = data.token || data.jwt || data.accessToken;
+            if (!token) throw new Error("La respuesta del servidor no incluyó un token.");
 
-    statuses.forEach(status => {
-        const count = status === "TODOS"
-            ? state.shipments.length
-            : state.shipments.filter(shipment => shipment.estadoEnvio === status).length;
-        const element = document.querySelector(`[data-filter-count="${status}"]`);
-        if (element) {
-            element.textContent = count;
+            saveSession(token);
+            window.location.href = "dashboard.html";
+        } catch (error) {
+            showError(error.message || "No se pudo iniciar sesión.");
+        } finally {
+            submitButton.disabled = false;
         }
     });
-}
 
-function getVisibleShipments() {
-    const search = state.search.toLowerCase();
-    return state.shipments.filter(shipment => {
-        const matchesFilter = state.filter === "TODOS" || shipment.estadoEnvio === state.filter;
-        const searchableText = `${shipment.codigoRastreo || ""} ${shipment.direccionDestino || ""}`.toLowerCase();
-        return matchesFilter && searchableText.includes(search);
-    });
-}
+    function showError(message) {
+        errorBox.textContent = message;
+        errorBox.hidden = false;
+    }
 
-function renderShipments() {
-    const visibleShipments = getVisibleShipments();
-    elements.grid.innerHTML = visibleShipments.map(renderShipmentCard).join("");
-    elements.empty.hidden = visibleShipments.length > 0;
-
-    elements.grid.querySelectorAll("[data-action-state]").forEach(button => {
-        button.addEventListener("click", () => updateShipmentState(button.dataset.id, button.dataset.actionState, button));
-    });
-    elements.grid.querySelectorAll("[data-audit-id]").forEach(button => {
-        button.addEventListener("click", () => openAudit(button.dataset.auditId, button.dataset.auditCode));
-    });
-}
-
-function renderShipmentCard(shipment) {
-    const status = shipment.estadoEnvio || "SIN ESTADO";
-    const normalizedStatus = status.toLowerCase();
-    const isPending = status === "PENDIENTE";
-    const isTransit = status === "EN_TRANSITO";
-    const statusClass = ["PENDIENTE", "EN_TRANSITO", "ENTREGADO", "CANCELADO"].includes(status)
-        ? `status-${normalizedStatus}`
-        : "status-unknown";
-
-    return `
-        <article class="shipment-card">
-            <div class="card-header">
-                <span class="tracking-code">${escapeHtml(shipment.codigoRastreo || "Sin codigo")}</span>
-                <span class="pill-status ${statusClass}">${formatStatus(status)}</span>
-            </div>
-            <div class="card-route">
-                <div>
-                    <span class="route-label">Destino</span>
-                    <p class="route-value">${escapeHtml(shipment.direccionDestino || "No indicado")}</p>
-                </div>
-                <span class="route-arrow" aria-hidden="true">&#8594;</span>
-            </div>
-            <div class="card-meta">
-                <div>
-                    <span class="meta-label">Peso</span>
-                    <p class="meta-value">${formatNumber(shipment.pesoKg)} kg</p>
-                </div>
-                <div>
-                    <span class="meta-label">Costo</span>
-                    <p class="meta-value">${formatCurrency(shipment.costo)}</p>
-                </div>
-                <div>
-                    <span class="meta-label">Asignacion</span>
-                    <p class="meta-value">V-${shipment.vehiculoId ?? "-"} / C-${shipment.conductorId ?? "-"}</p>
-                </div>
-                <div>
-                    <span class="meta-label">Empresa</span>
-                    <p class="meta-value">${escapeHtml(shipment.empresaNombre || "No indicada")}</p>
-                </div>
-            </div>
-            <div class="card-actions">
-                ${isPending ? `<button class="action-button" type="button" data-id="${shipment.id}" data-action-state="EN_TRANSITO">Marcar en transito</button>` : ""}
-                ${isPending || isTransit ? `<button class="action-button" type="button" data-id="${shipment.id}" data-action-state="ENTREGADO">Marcar entregado</button>` : ""}
-                ${canAudit ? `<button class="action-button" type="button" data-audit-id="${shipment.id}" data-audit-code="${escapeHtml(shipment.codigoRastreo || "")}">Ver bitácora</button>` : ""}
-            </div>
-        </article>
-    `;
-}
-
-async function updateShipmentState(id, status, button) {
-    button.disabled = true;
-    setFeedback("");
-
-    try {
-        await request(`${API_BASE}/${id}/estado`, { method: "PATCH", body: JSON.stringify({ nuevoEstado: status }) });
-        await loadShipments();
-        setFeedback("Estado actualizado correctamente.", "success");
-    } catch (error) {
-        button.disabled = false;
-        setFeedback(`No se pudo actualizar el estado: ${error.message}`);
+    function hideError() {
+        errorBox.textContent = "";
+        errorBox.hidden = true;
     }
 }
 
-async function createShipment(event) {
-    event.preventDefault();
-    elements.submitButton.disabled = true;
-    setFeedback("");
+/* ==========================================================
+   VISTA: dashboard.html
+   ========================================================== */
 
-    const formData = new FormData(elements.form);
-    const payload = {
-        codigoRastreo: formData.get("codigoRastreo"),
-        direccionDestino: formData.get("direccionDestino"),
-        pesoKg: Number(formData.get("pesoKg")),
-        costo: Number(formData.get("costo")),
-        vehiculoId: Number(formData.get("vehiculoId")),
-        conductorId: Number(formData.get("conductorId"))
+function initDashboardPage() {
+    if (!getToken()) {
+        window.location.href = "index.html";
+        return;
+    }
+
+    const roles = getRoles();
+    const isAdmin = roles.includes("ROLE_ADMIN");
+    const isOperador = roles.includes("ROLE_OPERADOR");
+    const isConductor = roles.includes("ROLE_CONDUCTOR");
+
+    const state = { envios: [], filter: "TODOS" };
+
+    const el = {
+        userName: document.querySelector("#user-name"),
+        userRole: document.querySelector("#user-role"),
+        logout: document.querySelector("#logout-button"),
+        feedback: document.querySelector("#feedback"),
+        enviosGrid: document.querySelector("#enviosGrid"),
+        emptyState: document.querySelector("#empty-state"),
+        kpiTotal: document.querySelector("#kpi-total-envios"),
+        kpiVehiculos: document.querySelector("#kpi-vehiculos-activos"),
+        kpiEntregados: document.querySelector("#kpi-paquetes-entregados"),
+        roleActions: document.querySelector("#role-actions"),
+        btnNuevoVehiculo: document.querySelector("#btn-nuevo-vehiculo"),
+        auditPanel: document.querySelector("#audit-panel"),
+        auditList: document.querySelector("#audit-list"),
+        createPanel: document.querySelector("#create-panel"),
+        shipmentForm: document.querySelector("#shipment-form"),
+        submitButton: document.querySelector("#submit-button"),
+        vehicleSelect: document.querySelector("#vehiculo-id"),
+        driverSelect: document.querySelector("#conductor-id")
     };
 
-    try {
-        await request(API_BASE, {
-            method: "POST",
-            body: JSON.stringify(payload)
-        });
-        elements.form.reset();
-        await loadShipments();
-        setFeedback("Envio registrado correctamente.", "success");
-    } catch (error) {
-        setFeedback(`No se pudo registrar el envio: ${error.message}`);
-    } finally {
-        elements.submitButton.disabled = false;
-    }
-}
+    // Cabecera de usuario
+    el.userName.textContent = getUserName();
+    el.userRole.textContent = roles[0] || "";
 
-async function openAudit(id, code) {
-    elements.auditModal.hidden = false;
-    document.querySelector("#audit-title").textContent = `Bitácora ${code}`;
-    elements.auditList.innerHTML = "Cargando historial...";
-    try {
-        state.audit = await request(`${API_BASE}/${id}/bitacora`);
-        renderAudit();
-    } catch (error) { elements.auditList.textContent = error.message; }
-}
+    // Visibilidad según rol
+    el.auditPanel.hidden = !isAdmin;
+    el.roleActions.hidden = !(isAdmin || isOperador);
+    el.btnNuevoVehiculo.hidden = !isAdmin;
+    el.createPanel.hidden = !(isAdmin || isOperador);
 
-function renderAudit() {
-    const from = elements.auditFrom.value ? new Date(`${elements.auditFrom.value}T00:00:00`) : null;
-    const to = elements.auditTo.value ? new Date(`${elements.auditTo.value}T23:59:59`) : null;
-    const entries = (state.audit || []).filter(item => {
-        const date = new Date(item.fechaCambio);
-        return (!from || date >= from) && (!to || date <= to);
+    el.logout.addEventListener("click", () => {
+        clearSession();
+        window.location.href = "index.html";
     });
-    elements.auditList.innerHTML = entries.length
-        ? entries.map(item => `<article class="audit-entry"><strong>${escapeHtml(item.estadoAnterior)} → ${escapeHtml(item.estadoNuevo)}</strong><time>${new Date(item.fechaCambio).toLocaleString("es-CR")}</time><span>${escapeHtml(item.usuario || "-")}</span><p>${escapeHtml(item.observaciones || "Sin observaciones")}</p></article>`).join("")
-        : "No hay cambios en ese rango.";
-}
 
-function setConnection(status) {
-    const labels = { loading: "Conectando", online: "API conectada", offline: "API desconectada" };
-    elements.connectionLabel.textContent = labels[status];
-    elements.connectionDot.className = `status-dot is-${status}`;
-}
+    if (el.shipmentForm) {
+        el.shipmentForm.addEventListener("submit", createEnvio);
+    }
 
-function setFeedback(message, type = "error") {
-    elements.feedback.textContent = message;
-    elements.feedback.style.color = type === "success" ? "var(--green)" : "var(--red)";
-}
+    document.querySelectorAll("[data-filter]").forEach(button => {
+        button.addEventListener("click", () => {
+            document.querySelectorAll("[data-filter]").forEach(b => b.classList.remove("is-active"));
+            button.classList.add("is-active");
+            state.filter = button.dataset.filter;
+            renderEnvios();
+        });
+    });
 
-function formatStatus(status) {
-    return { EN_TRANSITO: "EN TRANSITO", PENDIENTE: "PENDIENTE", ENTREGADO: "ENTREGADO", CANCELADO: "CANCELADO" }[status] || status;
-}
+    async function loadEnvios() {
+        setFeedback("");
+        try {
+            state.envios = await request(`${API_ENVIOS}/optimizados`);
+            renderKpis();
+            renderEnvios();
+            if (isAdmin) loadAuditoriaGlobal();
+        } catch (error) {
+            setFeedback(error.message, "error");
+        }
+    }
 
-function formatNumber(value) {
-    return Number(value || 0).toLocaleString("es-CR", { maximumFractionDigits: 2 });
-}
+    async function loadCatalogs() {
+        try {
+            const [vehiculos, conductores] = await Promise.all([
+                request(API_VEHICULOS),
+                request(API_CONDUCTORES)
+            ]);
+            fillSelect(el.vehicleSelect, vehiculos, v => v.placa || `Vehículo ${v.id}`);
+            fillSelect(el.driverSelect, conductores, c =>
+                `${c.nombre || ""} ${c.apellidos || ""}`.trim() || `Conductor ${c.id}`
+            );
+        } catch (error) {
+            setFeedback(`No se pudieron cargar los catálogos: ${error.message}`, "error");
+        }
+    }
 
-function formatCurrency(value) {
-    return Number(value || 0).toLocaleString("es-CR", { style: "currency", currency: "CRC", maximumFractionDigits: 2 });
+    function fillSelect(select, items, labelFn) {
+        select.innerHTML = '<option value="">Seleccione una opción</option>';
+        items.forEach(item => {
+            select.insertAdjacentHTML(
+                "beforeend",
+                `<option value="${item.id}">${escapeHtml(labelFn(item))}</option>`
+            );
+        });
+    }
+
+    async function createEnvio(event) {
+        event.preventDefault();
+        el.submitButton.disabled = true;
+        setFeedback("");
+
+        const formData = new FormData(el.shipmentForm);
+        const payload = {
+            codigoRastreo: formData.get("codigoRastreo"),
+            direccionDestino: formData.get("direccionDestino"),
+            pesoKg: Number(formData.get("pesoKg")),
+            costo: Number(formData.get("costo")),
+            vehiculoId: Number(formData.get("vehiculoId")),
+            conductorId: Number(formData.get("conductorId"))
+        };
+
+        try {
+            await request(API_ENVIOS, {
+                method: "POST",
+                body: JSON.stringify(payload)
+            });
+            el.shipmentForm.reset();
+            await loadEnvios();
+            setFeedback("Envío registrado correctamente.", "success");
+        } catch (error) {
+            setFeedback(`No se pudo registrar el envío: ${error.message}`, "error");
+        } finally {
+            el.submitButton.disabled = false;
+        }
+    }
+
+    function renderKpis() {
+        el.kpiTotal.textContent = state.envios.length;
+        el.kpiEntregados.textContent = state.envios.filter(
+            e => e.estadoEnvio === "ENTREGADO"
+        ).length;
+        const vehiculosActivos = new Set(
+            state.envios
+                .filter(e => e.estadoEnvio === "EN_TRANSITO")
+                .map(e => e.vehiculoId)
+        );
+        el.kpiVehiculos.textContent = vehiculosActivos.size;
+    }
+
+    function getVisibleEnvios() {
+        let envios = state.envios;
+
+        // ROLE_CONDUCTOR: solo ve los envíos asignados a su propio vehículo
+        if (isConductor) {
+            const miVehiculoId = getVehiculoIdDelConductor();
+            envios = envios.filter(e => e.vehiculoId === miVehiculoId);
+        }
+
+        if (state.filter === "TODOS") return envios;
+        return envios.filter(e => e.estadoEnvio === state.filter);
+    }
+
+    function getVehiculoIdDelConductor() {
+        const payload = decodeJwt(getToken());
+        return payload ? payload.vehiculoId : null;
+    }
+
+    function renderEnvios() {
+        const visibles = getVisibleEnvios();
+        el.enviosGrid.innerHTML = visibles.map(renderEnvioCard).join("");
+        el.emptyState.hidden = visibles.length > 0;
+
+        el.enviosGrid.querySelectorAll("[data-action-state]").forEach(button => {
+            button.addEventListener("click", () =>
+                actualizarEstado(button.dataset.id, button.dataset.actionState, button)
+            );
+        });
+        el.enviosGrid.querySelectorAll("[data-assign-vehicle]").forEach(button => {
+            button.addEventListener("click", () => asignarVehiculo(button.dataset.id, button));
+        });
+    }
+
+    async function asignarVehiculo(id, button) {
+        const vehiculoId = window.prompt("ID del vehículo a asignar:");
+        if (!vehiculoId) return;
+
+        button.disabled = true;
+        try {
+            await request(`${API_ENVIOS}/${id}/vehiculo`, {
+                method: "PUT",
+                body: JSON.stringify({ vehiculoId: Number(vehiculoId) })
+            });
+            await loadEnvios();
+            setFeedback("Vehículo asignado correctamente.", "success");
+        } catch (error) {
+            button.disabled = false;
+            setFeedback(error.message, "error");
+        }
+    }
+
+    function renderEnvioCard(envio) {
+        const status = envio.estadoEnvio || "SIN_ESTADO";
+        const statusClass = ["PENDIENTE", "EN_TRANSITO", "ENTREGADO", "CANCELADO"].includes(status)
+            ? `status-${status.toLowerCase()}`
+            : "status-unknown";
+
+        const acciones = [];
+
+        // ROLE_OPERADOR: asignar vehículo y avanzar el envío a EN_TRANSITO
+        if (isOperador && status === "PENDIENTE") {
+            acciones.push(
+                `<button class="action-button" type="button" data-id="${envio.id}" data-assign-vehicle="true">Asignar vehículo</button>`
+            );
+            acciones.push(
+                `<button class="action-button" type="button" data-id="${envio.id}" data-action-state="EN_TRANSITO">Marcar en tránsito</button>`
+            );
+        }
+
+        // ROLE_CONDUCTOR: solo marcar como ENTREGADO sus propios envíos en tránsito
+        if (isConductor && status === "EN_TRANSITO") {
+            acciones.push(
+                `<button class="action-button" type="button" data-id="${envio.id}" data-action-state="ENTREGADO">Marcar entregado</button>`
+            );
+        }
+
+        // ROLE_ADMIN: acceso total a ambas transiciones (además de la bitácora en el aside)
+        if (isAdmin) {
+            if (status === "PENDIENTE") {
+                acciones.push(
+                    `<button class="action-button" type="button" data-id="${envio.id}" data-action-state="EN_TRANSITO">Marcar en tránsito</button>`
+                );
+            }
+            if (status === "PENDIENTE" || status === "EN_TRANSITO") {
+                acciones.push(
+                    `<button class="action-button" type="button" data-id="${envio.id}" data-action-state="ENTREGADO">Marcar entregado</button>`
+                );
+            }
+        }
+
+        return `
+      <article class="shipment-card">
+        <div class="card-header">
+          <span class="tracking-code">${escapeHtml(envio.codigoRastreo || "Sin código")}</span>
+          <span class="pill-status ${statusClass}">${escapeHtml(status)}</span>
+        </div>
+        <div class="card-route">
+          <span class="route-value">${escapeHtml(envio.direccionDestino || "No indicado")}</span>
+        </div>
+        <div class="card-meta">
+          <span>${formatNumber(envio.pesoKg)} kg</span>
+          <span>${formatCurrency(envio.costo)}</span>
+        </div>
+        ${acciones.length ? `<div class="card-actions">${acciones.join("")}</div>` : ""}
+      </article>
+    `;
+    }
+
+    async function actualizarEstado(id, nuevoEstado, button) {
+        button.disabled = true;
+        try {
+            await request(`${API_ENVIOS}/${id}/estado`, {
+                method: "PUT",
+                body: JSON.stringify({ nuevoEstado })
+            });
+            await loadEnvios();
+            setFeedback("Estado actualizado correctamente.", "success");
+        } catch (error) {
+            button.disabled = false;
+            setFeedback(error.message, "error");
+        }
+    }
+
+    async function loadAuditoriaGlobal() {
+        try {
+            const entradas = await request(`${API_ENVIOS}/bitacora`);
+            el.auditList.innerHTML = (entradas || [])
+                .map(
+                    item => `
+            <li class="audit-entry">
+              <strong>${escapeHtml(item.estadoAnterior || "-")} → ${escapeHtml(item.estadoNuevo || "-")}</strong>
+              <time>${item.fechaCambio ? new Date(item.fechaCambio).toLocaleString("es-CR") : ""}</time>
+            </li>`
+                )
+                .join("");
+        } catch (error) {
+            el.auditList.innerHTML = `<li class="audit-entry">${escapeHtml(error.message)}</li>`;
+        }
+    }
+
+    function setFeedback(message, type = "error") {
+        el.feedback.textContent = message;
+        el.feedback.classList.remove("is-error", "is-success");
+        if (message) el.feedback.classList.add(type === "success" ? "is-success" : "is-error");
+    }
+
+    loadEnvios();
+    if (isAdmin || isOperador) loadCatalogs();
 }
 
 function escapeHtml(value) {
-    return String(value)
+    return String(value ?? "")
         .replaceAll("&", "&amp;")
         .replaceAll("<", "&lt;")
         .replaceAll(">", "&gt;")
@@ -324,29 +495,22 @@ function escapeHtml(value) {
         .replaceAll("'", "&#039;");
 }
 
-document.querySelectorAll("[data-filter]").forEach(button => {
-    button.addEventListener("click", () => {
-        document.querySelectorAll("[data-filter]").forEach(item => item.classList.remove("is-active"));
-        button.classList.add("is-active");
-        state.filter = button.dataset.filter;
-        updateFilterCounts();
-        renderShipments();
-    });
-});
+function formatNumber(value) {
+    return Number(value || 0).toLocaleString("es-CR", { maximumFractionDigits: 2 });
+}
 
-elements.search.addEventListener("input", event => {
-    state.search = event.target.value.trim();
-    updateFilterCounts();
-    renderShipments();
+function formatCurrency(value) {
+    return Number(value || 0).toLocaleString("es-CR", {
+        style: "currency",
+        currency: "CRC",
+        maximumFractionDigits: 2
+    });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    if (document.querySelector("#loginForm")) {
+        initLoginPage();
+    } else if (document.querySelector("#kpiSection")) {
+        initDashboardPage();
+    }
 });
-elements.refresh.addEventListener("click", loadShipments);
-elements.form.addEventListener("submit", createShipment);
-elements.userBadge.textContent = `${localStorage.getItem("auth_user") || "Usuario"} · ${roles.join(", ")}`;
-elements.createPanel.hidden = isConductor;
-elements.logout.addEventListener("click", () => { localStorage.clear(); window.location.href = "login.html"; });
-document.querySelector("#close-audit").addEventListener("click", () => { elements.auditModal.hidden = true; });
-elements.auditModal.addEventListener("click", event => { if (event.target === elements.auditModal) elements.auditModal.hidden = true; });
-elements.auditFrom.addEventListener("change", renderAudit);
-elements.auditTo.addEventListener("change", renderAudit);
-loadShipments();
-if (!isConductor) loadCatalogs();

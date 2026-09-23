@@ -28,10 +28,10 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.business.EnvioService;
-import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.business.CapacidadExcedidaException;
 import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.business.EnvioException;
-import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.business.InvalidStateTransitionException;
-import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.business.ResourceNotFoundException;
+import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.business.exceptions.CapacidadExcedidaException;
+import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.business.exceptions.InvalidStateTransitionException;
+import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.business.exceptions.ResourceNotFoundException;
 import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.data.BitacoraEnvioRepository;
 import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.data.ConductorRepository;
 import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.data.EnvioRepository;

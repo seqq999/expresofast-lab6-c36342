@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Consola de operación logística de ExpresoFast"
+    />
+    <title>ExpresoFast | Consola de operaciones</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="dashboard.html" aria-label="ExpresoFast inicio">
+          <span class="brand-mark" aria-hidden="true">EF</span>
+          <span>
+            <strong>ExpresoFast</strong>
+            <small>Consola de operación logística</small>
+          </span>
+        </a>
+        <div class="topbar-actions">
+          <span class="user-badge" id="user-badge">
+            <span id="user-name">Cargando...</span>
+            <span id="user-role" class="role-pill"></span>
+          </span>
+          <button
+            class="icon-button"
+            id="logout-button"
+            type="button"
+            title="Cerrar sesión"
+            aria-label="Cerrar sesión"
+          >
+            ↪
+          </button>
+        </div>
+      </header>
+
+      <!-- NAV: filtrado principal de envíos por estado -->
+      <nav class="filter-nav" aria-label="Filtrar envíos por estado">
+        <button
+          class="filter-button is-active"
+          type="button"
+          data-filter="TODOS"
+        >
+          Todos
+        </button>
+        <button class="filter-button" type="button" data-filter="PENDIENTE">
+          Pendientes
+        </button>
+        <button class="filter-button" type="button" data-filter="EN_TRANSITO">
+          En tránsito
+        </button>
+        <button class="filter-button" type="button" data-filter="ENTREGADO">
+          Entregados
+        </button>
+      </nav>
+
+      <div class="layout-grid">
+        <main class="main-content">
+          <div
+            class="feedback"
+            id="feedback"
+            role="alert"
+            aria-live="polite"
+          ></div>
+
+          <section
+            id="kpiSection"
+            class="kpi-section"
+            aria-label="Indicadores clave de operación"
+          >
+            <article class="kpi-card">
+              <span class="kpi-label">Total de envíos</span>
+              <strong class="kpi-value" id="kpi-total-envios">0</strong>
+            </article>
+            <article class="kpi-card">
+              <span class="kpi-label">Vehículos activos</span>
+              <strong class="kpi-value" id="kpi-vehiculos-activos">0</strong>
+            </article>
+            <article class="kpi-card">
+              <span class="kpi-label">Paquetes entregados</span>
+              <strong class="kpi-value" id="kpi-paquetes-entregados">0</strong>
+            </article>
+          </section>
+
+          <div class="role-actions" id="role-actions" hidden>
+            <button
+              class="secondary-button"
+              id="btn-nuevo-vehiculo"
+              type="button"
+              hidden
+            >
+              + Registrar vehículo
+            </button>
+          </div>
+
+          <section
+            class="create-panel"
+            id="create-panel"
+            aria-labelledby="create-title"
+            hidden
+          >
+            <h2 id="create-title">Registrar envío</h2>
+            <form class="shipment-form" id="shipment-form">
+              <div class="form-field">
+                <label for="codigo-rastreo">Código de rastreo</label>
+                <input
+                  id="codigo-rastreo"
+                  name="codigoRastreo"
+                  type="text"
+                  placeholder="EXP-9901"
+                  maxlength="30"
+                  required
+                />
+              </div>
+              <div class="form-field form-field-wide">
+                <label for="direccion-destino">Dirección destino</label>
+                <input
+                  id="direccion-destino"
+                  name="direccionDestino"
+                  type="text"
+                  placeholder="Paraíso, Cartago"
+                  maxlength="200"
+                  required
+                />
+              </div>
+              <div class="form-field">
+                <label for="peso-kg">Peso (kg)</label>
+                <input
+                  id="peso-kg"
+                  name="pesoKg"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  placeholder="12.5"
+                  required
+                />
+              </div>
+              <div class="form-field">
+                <label for="costo">Costo</label>
+                <input
+                  id="costo"
+                  name="costo"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="3500.00"
+                  required
+                />
+              </div>
+              <div class="form-field">
+                <label for="vehiculo-id">Vehículo</label>
+                <select id="vehiculo-id" name="vehiculoId" required>
+                  <option value="">Cargando vehículos...</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label for="conductor-id">Conductor</label>
+                <select id="conductor-id" name="conductorId" required>
+                  <option value="">Cargando conductores...</option>
+                </select>
+              </div>
+              <div class="form-actions">
+                <button class="primary-button" type="submit" id="submit-button">
+                  Registrar envío
+                </button>
+              </div>
+            </form>
+          </section>
+
+          <section
+            id="enviosGrid"
+            class="envios-grid"
+            aria-label="Listado de envíos"
+            aria-live="polite"
+          ></section>
+
+          <p class="empty-state" id="empty-state" hidden>
+            No hay envíos para mostrar con el filtro seleccionado.
+          </p>
+        </main>
+
+        <aside
+          class="audit-panel"
+          id="audit-panel"
+          aria-labelledby="audit-title"
+          hidden
+        >
+          <h2 id="audit-title">Bitácora de auditoría</h2>
+          <p class="audit-copy">Historial de cambios sobre los envíos.</p>
+          <ul class="audit-list" id="audit-list"></ul>
+        </aside>
+      </div>
+
+      <footer class="footer">
+        <span>&copy; 2026 ExpresoFast</span>
+        <span
+          >Soporte:
+          <a href="mailto:soporte@expresofast.example"
+            >soporte@expresofast.example</a
+          ></span
+        >
+      </footer>
+    </div>
+  </body>
+</html>
