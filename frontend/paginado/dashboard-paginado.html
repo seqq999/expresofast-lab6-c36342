@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Consola logística ExpresoFast - vista paginada de envíos"
+    />
+    <title>ExpresoFast | Envíos paginados</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../styles.css" />
+    <script src="../app.js" defer></script>
+    <script src="app-paginado.js" defer></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <a
+          class="brand"
+          href="../dashboard.html"
+          aria-label="ExpresoFast inicio"
+        >
+          <span class="brand-mark" aria-hidden="true">EF</span>
+          <span>
+            <strong>ExpresoFast</strong>
+            <small>Envíos paginados</small>
+          </span>
+        </a>
+        <div class="topbar-actions">
+          <span class="user-badge" id="user-badge">
+            <span id="user-name">Cargando...</span>
+            <span id="user-role" class="role-pill"></span>
+          </span>
+          <a
+            class="icon-button"
+            href="../dashboard.html"
+            title="Volver a la consola"
+            aria-label="Volver a la consola"
+          >
+            ←
+          </a>
+          <button
+            class="icon-button"
+            id="logout-button"
+            type="button"
+            title="Cerrar sesión"
+            aria-label="Cerrar sesión"
+          >
+            ↪
+          </button>
+        </div>
+      </header>
+
+      <main class="main-content">
+        <div
+          class="feedback"
+          id="feedback"
+          role="alert"
+          aria-live="polite"
+        ></div>
+
+        <form
+          class="filtros-form"
+          id="filtros-form"
+          aria-label="Filtros de búsqueda de envíos"
+        >
+          <div class="form-field form-field-wide">
+            <label for="busqueda">Buscar</label>
+            <input
+              id="busqueda"
+              name="busqueda"
+              type="search"
+              placeholder="Código, destinatario o dirección..."
+              autocomplete="off"
+            />
+          </div>
+
+          <div class="form-field">
+            <label for="modo-consulta">Origen de datos</label>
+            <select id="modo-consulta" name="modoConsulta">
+              <option value="paginado">Consulta paginada (JPA)</option>
+              <option value="procedimiento">Stored Procedure</option>
+            </select>
+          </div>
+
+          <div class="form-field">
+            <label for="estado-filtro">Estado</label>
+            <select id="estado-filtro" name="estado">
+              <option value="">Todos</option>
+              <option value="PENDIENTE">Pendiente</option>
+              <option value="EN_TRANSITO">En tránsito</option>
+              <option value="ENTREGADO">Entregado</option>
+              <option value="CANCELADO">Cancelado</option>
+            </select>
+          </div>
+
+          <div class="form-field">
+            <label for="tamano-pagina">Ítems por página</label>
+            <select id="tamano-pagina" name="size">
+              <option value="5" selected>5</option>
+              <option value="10">10</option>
+              <option value="20">20</option>
+            </select>
+          </div>
+
+          <div class="form-actions">
+            <button class="primary-button" type="submit">Filtrar</button>
+          </div>
+        </form>
+
+        <!-- Tabla de envíos -->
+        <section aria-labelledby="tabla-title">
+          <h2 id="tabla-title" class="sr-only">Listado de envíos</h2>
+          <div class="tabla-wrapper">
+            <table class="envios-tabla">
+              <thead>
+                <tr>
+                  <th scope="col">Rastreo</th>
+                  <th scope="col">Destinatario</th>
+                  <th scope="col">Dirección</th>
+                  <th scope="col">Flete</th>
+                  <th scope="col">Estado</th>
+                </tr>
+              </thead>
+              <tbody id="envios-tbody">
+                <tr>
+                  <td colspan="5" class="tabla-vacia">Cargando envíos...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <nav
+          class="paginacion"
+          id="paginacion"
+          aria-label="Navegación de páginas de envíos"
+          hidden
+        >
+          <button
+            class="page-button"
+            id="btn-primera"
+            type="button"
+            aria-label="Ir a la primera página"
+          >
+            &laquo; Primera
+          </button>
+          <button
+            class="page-button"
+            id="btn-anterior"
+            type="button"
+            aria-label="Ir a la página anterior"
+          >
+            &lsaquo; Anterior
+          </button>
+
+          <span
+            class="page-status"
+            id="page-status"
+            role="status"
+            aria-live="polite"
+          >
+            Página 1 de 1 (Total: 0 envíos)
+          </span>
+
+          <button
+            class="page-button"
+            id="btn-siguiente"
+            type="button"
+            aria-label="Ir a la página siguiente"
+          >
+            Siguiente &rsaquo;
+          </button>
+          <button
+            class="page-button"
+            id="btn-ultima"
+            type="button"
+            aria-label="Ir a la última página"
+          >
+            Última &raquo;
+          </button>
+        </nav>
+      </main>
+
+      <footer class="footer">
+        <span>&copy; 2026 ExpresoFast</span>
+        <span
+          >Soporte:
+          <a href="mailto:soporte@expresofast.example"
+            >soporte@expresofast.example</a
+          ></span
+        >
+      </footer>
+    </div>
+  </body>
+</html>

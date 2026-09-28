@@ -21,6 +21,7 @@ import jakarta.validation.Valid;
 import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.dto.EnvioResponseDTO;
 import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.domain.*;
 
+
 @RestController
 @RequestMapping("api/envios")
 @Tag(name = "Envios", description = "Endpoints para la gestion de envios")
@@ -86,6 +87,7 @@ public class EnvioController {
     public List<BitacoraResponseDTO> bitacora(@PathVariable Integer id) {
         return service.findBitacora(id);
     }
+
 
     private EnvioResponseDTO convertirRespuesta(Envio envio) {
         Vehiculo vehiculo = envio.getVehiculo();

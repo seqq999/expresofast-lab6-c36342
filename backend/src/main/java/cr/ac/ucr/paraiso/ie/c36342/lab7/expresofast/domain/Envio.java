@@ -6,17 +6,20 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import jakarta.persistence.*;
 
-@Entity 
+@Entity
 @Table(name = "Envio")
 public class Envio extends AuditableEntity {
-    @Id 
-    @GeneratedValue (strategy = GenerationType.IDENTITY)
-    @Column (name = "envio_id")
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "envio_id")
     private Integer id;
 
     @Column(name = "codigo_rastreo", unique = true)
     private String codigoRastreo;
-    
+
+    @Column(name = "destinatario") 
+    private String destinatario;
+
     @Column(name = "direccion_destino")
     private String direccionDestino;
 
@@ -53,6 +56,14 @@ public class Envio extends AuditableEntity {
 
     public void setCodigoRastreo(String codigoRastreo) {
         this.codigoRastreo = codigoRastreo;
+    }
+
+    public String getDestinatario() {
+        return destinatario;
+    }
+
+    public void setDestinatario(String destinatario) { 
+        this.destinatario = destinatario;
     }
 
     public String getDireccionDestino() {

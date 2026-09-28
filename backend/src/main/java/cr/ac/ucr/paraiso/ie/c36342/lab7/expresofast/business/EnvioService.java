@@ -8,23 +8,32 @@ import java.time.LocalDateTime;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.data.ConductorRepository;
 import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.data.EnvioRepository;
 import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.data.VehiculoRepository;
 import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.business.exceptions.CapacidadExcedidaException;
+import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.business.exceptions.EnvioException;
 import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.business.exceptions.InvalidStateTransitionException;
 import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.business.exceptions.ResourceNotFoundException;
 import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.data.BitacoraEnvioRepository;
 import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.data.UsuarioRepository;
 import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.domain.Conductor;
+import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.domain.EmpresaLogistica;
 import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.domain.Envio;
 import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.domain.Vehiculo;
 import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.domain.BitacoraEnvio;
 import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.domain.Usuario;
 import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.dto.EnvioRequestDTO;
+import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.dto.EnvioResponseDTO;
 import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.dto.BitacoraResponseDTO;
+import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.dto.EnvioDTO;
 
 @Service
 public class EnvioService {
@@ -84,11 +93,12 @@ public class EnvioService {
     public Envio updatedState(Integer id, String estado, String observaciones) {
         validateState(estado);
         Envio envio = repo.findById(id)
-            .orElseThrow(() -> new EnvioException("No existe el envío con id " + id));
+                .orElseThrow(() -> new EnvioException("No existe el envío con id " + id));
         String previousState = envio.getEstadoEnvio();
         if (("ENTREGADO".equals(previousState) || "CANCELADO".equals(previousState))
                 && ("PENDIENTE".equals(estado) || "EN_TRANSITO".equals(estado))) {
-            throw new InvalidStateTransitionException("Transición de estado no permitida para el envío " + envio.getCodigoRastreo());
+            throw new InvalidStateTransitionException(
+                    "Transición de estado no permitida para el envío " + envio.getCodigoRastreo());
         }
         if ("EN_TRANSITO".equals(previousState) && "CANCELADO".equals(estado)) {
             throw new InvalidStateTransitionException("No se puede cancelar un envío en tránsito");
@@ -170,19 +180,19 @@ public class EnvioService {
      *
      * Matriz de tarifas:
      * - Peso <= 10 kg (Ligero):
-     *     - Distancia <= 15 km: 2500.0
-     *     - Distancia <= 50 km: 4000.0
-     *     - Distancia > 50 km:  6000.0
+     * - Distancia <= 15 km: 2500.0
+     * - Distancia <= 50 km: 4000.0
+     * - Distancia > 50 km: 6000.0
      * - Peso <= 30 kg (Mediano):
-     *     - Distancia <= 15 km: 4500.0
-     *     - Distancia <= 50 km: 7500.0
-     *     - Distancia > 50 km:  9500.0
+     * - Distancia <= 15 km: 4500.0
+     * - Distancia <= 50 km: 7500.0
+     * - Distancia > 50 km: 9500.0
      * - Peso > 30 kg (Pesado):
-     *     - Distancia <= 15 km: 12000.0
-     *     - Distancia <= 50 km: 15000.0
-     *     - Distancia > 50 km:  20000.0
+     * - Distancia <= 15 km: 12000.0
+     * - Distancia <= 50 km: 15000.0
+     * - Distancia > 50 km: 20000.0
      *
-     * @param pesoKg peso en kilogramos
+     * @param pesoKg      peso en kilogramos
      * @param distanciaKm distancia en kilómetros
      * @return tarifa calculada en colones
      */
@@ -216,5 +226,43 @@ public class EnvioService {
                 return 20000.0;
             }
         }
+    }
+
+    public Page<EnvioDTO> listarPaginado(int page, int size, String sortBy, String dir, String busqueda,
+            String estado) {
+
+        String campoOrden = StringUtils.hasText(sortBy) ? sortBy : "fechaCreacion";
+
+        Sort.Direction direccion = "asc".equalsIgnoreCase(dir)
+                ? Sort.Direction.ASC
+                : Sort.Direction.DESC;
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direccion, campoOrden));
+
+        String estadoFiltro = StringUtils.hasText(estado) ? estado : null;
+        String busquedaFiltro = StringUtils.hasText(busqueda) ? busqueda : null;
+
+        Page<Envio> paginaEnvios = repo.buscarPaginado(estadoFiltro, busquedaFiltro, pageable);
+
+        return paginaEnvios.map(this::mapToDTO);
+    }
+
+    @Transactional(readOnly = true)
+    public List<EnvioDTO> listarViaStoredProcedure(String estado) {
+        List<Envio> envios = repo.obtenerEnviosPorEstado(estado);
+        return envios.stream()
+                .map(this::mapToDTO)
+                .toList();
+    }
+
+    private EnvioDTO mapToDTO(Envio envio) {
+        return new EnvioDTO(
+                envio.getId(),
+                envio.getCodigoRastreo(),
+                envio.getDestinatario(),
+                envio.getDireccionDestino(),
+                envio.getCosto(),
+                envio.getEstadoEnvio(),
+                envio.getFechaCreacion());
     }
 }

@@ -1,3 +1,7 @@
+const APP_BASE = new URL(".", (document.currentScript && document.currentScript.src) || window.location.href).href;
+const LOGIN_URL = APP_BASE + "index.html";
+const DASHBOARD_URL = APP_BASE + "dashboard.html";
+
 const API_ROOT = "http://localhost:8080/api";
 const API_ENVIOS = `${API_ROOT}/envios`;
 const API_VEHICULOS = `${API_ROOT}/vehiculos`;
@@ -79,7 +83,7 @@ async function request(url, options = {}) {
 
     if (response.status === 401 || response.status === 403) {
         clearSession();
-        window.location.href = "index.html";
+        window.location.href = LOGIN_URL;
         throw new Error("Sesión expirada o sin permisos.");
     }
 
@@ -121,7 +125,7 @@ function initLoginPage() {
 
     // Si ya hay sesión activa, saltar directo al dashboard
     if (getToken()) {
-        window.location.href = "dashboard.html";
+        window.location.href = DASHBOARD_URL;
         return;
     }
 
@@ -154,7 +158,7 @@ function initLoginPage() {
             if (!token) throw new Error("La respuesta del servidor no incluyó un token.");
 
             saveSession(token);
-            window.location.href = "dashboard.html";
+            window.location.href = DASHBOARD_URL;
         } catch (error) {
             showError(error.message || "No se pudo iniciar sesión.");
         } finally {
@@ -175,7 +179,7 @@ function initLoginPage() {
 
 function initDashboardPage() {
     if (!getToken()) {
-        window.location.href = "index.html";
+        window.location.href = LOGIN_URL;
         return;
     }
 
@@ -219,7 +223,7 @@ function initDashboardPage() {
 
     el.logout.addEventListener("click", () => {
         clearSession();
-        window.location.href = "index.html";
+        window.location.href = LOGIN_URL;
     });
 
     if (el.shipmentForm) {

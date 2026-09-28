@@ -14,7 +14,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import java.util.stream.Collectors;
 
-import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.business.EnvioException;
+import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.business.exceptions.EnvioException;
 import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.business.exceptions.InvalidStateTransitionException;
 import cr.ac.ucr.paraiso.ie.c36342.lab7.expresofast.business.exceptions.ResourceNotFoundException;
 
