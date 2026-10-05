@@ -1,39 +1,47 @@
 package com.expresofast.expresofast_backend.model;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 
 @Entity
-@Table(name = "envio_lab10")
+@Table(name = "Envios")
 public class Envio {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "envio_id")
     private Long id;
 
-    @Column(name = "codigo_rastreo", unique = true, nullable = false, length = 30)
+    @Column(name = "codigo_rastreo")
     private String codigoRastreo;
 
-    @Column(nullable = false, length = 150)
+    @Column(name = "destinatario")
     private String destinatario;
 
-    @Column(name = "direccion_destino", nullable = false, length = 200)
+    @Column(name = "direccion_destino")
     private String direccionDestino;
 
-    @Column(name = "monto_flete", nullable = false)
+    @Column(name = "monto_flete")
     private Double montoFlete;
 
-    @Column(nullable = false, length = 20)
+    @Column(name = "estado")
     private String estado;
 
-    @Column(name = "fecha_creacion", nullable = false)
+    @Column(name = "fecha_creacion")
     private LocalDateTime fechaCreacion;
+
+    @Column(name = "fecha_despacho")
+    private LocalDate fechaDespacho;
+
+    @Column(name = "fecha_entrega_estimada")
+    private LocalDate fechaEntregaEstimada;
+
+    @OneToMany(mappedBy = "envio", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<Paquete> paquetes = new ArrayList<>();
 
     public Envio() {
     }
@@ -102,5 +110,39 @@ public class Envio {
 
     public void setFechaCreacion(LocalDateTime fechaCreacion) {
         this.fechaCreacion = fechaCreacion;
+    }
+
+    public LocalDate getFechaDespacho() {
+        return fechaDespacho;
+    }
+
+    public void setFechaDespacho(LocalDate fechaDespacho) {
+        this.fechaDespacho = fechaDespacho;
+    }
+
+    public LocalDate getFechaEntregaEstimada() {
+        return fechaEntregaEstimada;
+    }
+
+    public void setFechaEntregaEstimada(LocalDate fechaEntregaEstimada) {
+        this.fechaEntregaEstimada = fechaEntregaEstimada;
+    }
+
+    public List<Paquete> getPaquetes() {
+        return paquetes;
+    }
+
+    public void setPaquetes(List<Paquete> paquetes) {
+        this.paquetes = paquetes;
+    }
+
+    public void addPaquete(Paquete paquete) {
+        paquetes.add(paquete);
+        paquete.setEnvio(this);
+    }
+
+    public void removePaquete(Paquete paquete) {
+        paquetes.remove(paquete);
+        paquete.setEnvio(null);
     }
 }
