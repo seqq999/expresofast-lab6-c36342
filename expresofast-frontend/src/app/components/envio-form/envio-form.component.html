@@ -1,0 +1,48 @@
+<div class="card form-card">
+  <h2>Registrar Nuevo Envío</h2>
+
+  @if (mensajeExito) {
+    <div class="alert alert-success">{{ mensajeExito }}</div>
+  }
+  @if (mensajeError) {
+    <div class="alert alert-danger">{{ mensajeError }}</div>
+  }
+
+  <form (ngSubmit)="guardarEnvio()">
+    <div class="form-group">
+      <label for="destinatario">Nombre del Destinatario *</label>
+      <input
+        type="text"
+        id="destinatario"
+        name="destinatario"
+        [(ngModel)]="payload.destinatario"
+        required
+      />
+    </div>
+
+    <div class="form-group">
+      <label for="direccionDestino">Dirección de Destino *</label>
+      <textarea
+        id="direccionDestino"
+        name="direccionDestino"
+        [(ngModel)]="payload.direccionDestino"
+        rows="3"
+        required
+      ></textarea>
+    </div>
+
+    <div class="form-group">
+      <label for="montoFlete">Monto del Flete (CRC) *</label>
+      <input
+        type="number"
+        id="montoFlete"
+        name="montoFlete"
+        [(ngModel)]="payload.montoFlete"
+        min="1"
+        required
+      />
+    </div>
+
+    <button type="submit" class="btn-submit">Registrar Guía de Envío</button>
+  </form>
+</div>

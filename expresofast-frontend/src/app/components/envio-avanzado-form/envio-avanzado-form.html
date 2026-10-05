@@ -1,0 +1,101 @@
+<section class="form-container">
+  <h2>Registrar envío con paquetes</h2>
+
+  <form [formGroup]="form" (ngSubmit)="onSubmit()">
+    <div class="campo">
+      <label for="codigoRastreo">Número de rastreo</label>
+      <input id="codigoRastreo" type="text" formControlName="codigoRastreo" />
+
+      @if (form.controls.codigoRastreo.pending) {
+        <span class="hint">Verificando disponibilidad...</span>
+      }
+      @if (
+        form.controls.codigoRastreo.errors?.['required'] && form.controls.codigoRastreo.touched
+      ) {
+        <span class="error">El número de rastreo es obligatorio.</span>
+      }
+      @if (form.controls.codigoRastreo.errors?.['trackingTomado']) {
+        <span class="error">Este número de rastreo ya está en uso.</span>
+      }
+    </div>
+
+    <div class="campo">
+      <label for="destinatario">Destinatario</label>
+      <input id="destinatario" type="text" formControlName="destinatario" />
+    </div>
+
+    <div class="campo">
+      <label for="direccionDestino">Dirección destino</label>
+      <input id="direccionDestino" type="text" formControlName="direccionDestino" />
+    </div>
+
+    <div class="campo">
+      <label for="montoFlete">Monto del flete</label>
+      <input id="montoFlete" type="number" formControlName="montoFlete" />
+    </div>
+
+    <div class="campo">
+      <label for="fechaDespacho">Fecha de despacho</label>
+      <input id="fechaDespacho" type="date" formControlName="fechaDespacho" />
+    </div>
+
+    <div class="campo">
+      <label for="fechaEntregaEstimada">Fecha estimada de entrega</label>
+      <input id="fechaEntregaEstimada" type="date" formControlName="fechaEntregaEstimada" />
+    </div>
+
+    @if (form.errors?.['fechasInvalidas'] && form.touched) {
+      <p class="error-global">
+        La fecha de entrega estimada debe ser posterior a la fecha de despacho.
+      </p>
+    }
+
+    <fieldset formArrayName="paquetes" class="paquetes-fieldset">
+      <legend>Paquetes</legend>
+
+      @for (paqueteGroup of paquetes.controls; track $index) {
+        <div [formGroupName]="$index" class="paquete-row">
+          <div class="paquete-campo">
+            <label [for]="'descripcion-' + $index">Descripción</label>
+            <input
+              [id]="'descripcion-' + $index"
+              type="text"
+              [formControl]="paqueteGroup.controls.descripcion"
+            />
+          </div>
+          <div class="paquete-campo">
+            <label [for]="'pesoKg-' + $index">Peso en kilogramos</label>
+            <input
+              [id]="'pesoKg-' + $index"
+              type="number"
+              aria-label="Peso del paquete en kilogramos"
+              min="0.01"
+              step="0.01"
+              [formControl]="paqueteGroup.controls.pesoKg"
+            />
+          </div>
+          <button
+            type="button"
+            (click)="eliminarPaquete($index)"
+            [disabled]="paquetes.length === 1"
+          >
+            X
+          </button>
+        </div>
+      }
+
+      <button type="button" (click)="agregarPaquete()">+ Añadir Paquete</button>
+    </fieldset>
+
+    @if (mensajeExito) {
+      <p class="mensaje-exito">{{ mensajeExito }}</p>
+    }
+    @if (mensajeError) {
+      <p class="error-global">{{ mensajeError }}</p>
+    }
+
+    <button type="submit" [disabled]="form.invalid || enviando">
+      {{ enviando ? 'Registrando...' : 'Registrar envío' }}
+    </button>
+  </form>
+</section>

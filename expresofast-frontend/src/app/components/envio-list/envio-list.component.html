@@ -1,0 +1,50 @@
+<div class="card">
+  <h2>Dashboard de Envíos Registrados</h2>
+
+  @if (cargando) {
+    <p>Cargando información de paquetes...</p>
+  } @else if (mensajeError) {
+    <div class="alert alert-error">{{ mensajeError }}</div>
+  } @else {
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Código Rastreo</th>
+          <th>Destinatario</th>
+          <th>Dirección</th>
+          <th>Monto Flete</th>
+          <th>Estado</th>
+          <th>Acción</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (envio of envios; track envio.id) {
+          <tr>
+            <td>
+              <strong>{{ envio.codigoRastreo }}</strong>
+            </td>
+            <td>{{ envio.destinatario }}</td>
+            <td>{{ envio.direccionDestino }}</td>
+            <td>CRC {{ envio.montoFlete | number: '1.2-2' }}</td>
+            <td>
+              <span class="badge" [ngClass]="obtenerClaseInsignia(envio.estado)">
+                {{ envio.estado }}
+              </span>
+            </td>
+            <td>
+              <select [ngModel]="envio.estado" (ngModelChange)="cambiarEstado(envio, $event)">
+                @for (est of estados; track est) {
+                  <option [value]="est">{{ est }}</option>
+                }
+              </select>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="6" class="text-center">No existen envíos registrados en el sistema.</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</div>

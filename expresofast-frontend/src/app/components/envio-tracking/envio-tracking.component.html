@@ -1,0 +1,44 @@
+<div class="card tracking-card">
+  <h2>Rastrear Guía de Envío ExpresoFast</h2>
+
+  <div class="search-box">
+    <input
+      type="text"
+      [(ngModel)]="codigoBusqueda"
+      placeholder="Ej: EXP-2026-1001"
+      (keyup.enter)="buscarGuia()"
+    />
+    <button (click)="buscarGuia()">Buscar</button>
+  </div>
+
+  @if (buscando) {
+    <p>Consultando base de datos...</p>
+  }
+
+  @if (mensajeError) {
+    <div class="alert alert-danger">{{ mensajeError }}</div>
+  }
+
+  @if (envioEncontrado) {
+    <div class="tracking-result">
+      <h3>Detalles del Paquete: {{ envioEncontrado.codigoRastreo }}</h3>
+
+      <p><strong>Destinatario:</strong> {{ envioEncontrado.destinatario }}</p>
+      <p><strong>Dirección de Entrega:</strong> {{ envioEncontrado.direccionDestino }}</p>
+      <p>
+        <strong>Estado Actual:</strong> <span class="status-tag">{{ envioEncontrado.estado }}</span>
+      </p>
+
+      <div class="progress-section">
+        <label>Progreso del Envío:</label>
+        <div class="progress-bar-container">
+          <div
+            class="progress-bar"
+            [style.width.%]="obtenerPorcentajeProgreso(envioEncontrado.estado)"
+            [class.cancelled]="envioEncontrado.estado === 'CANCELADO'"
+          ></div>
+        </div>
+      </div>
+    </div>
+  }
+</div>
